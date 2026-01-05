@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfWeek, endOfWeek, subDays } from 'date-fns';
-import { Flame, Check, TrendingUp, Loader2, Bell } from 'lucide-react';
+import { Flame, Target, TrendingUp, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RevisionSession, Subject, Profile } from '@/types/database';
+import MobileHeader from '@/components/MobileHeader';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
@@ -134,24 +135,16 @@ const Progression = () => {
     }, 0);
   }, [weekSessions]);
 
-  const weeklyGoal = profile?.weekly_revision_hours || 40;
+  const weeklyGoal = profile?.weekly_revision_hours || 20;
   const progressPercent = Math.min((totalHours / weeklyGoal) * 100, 100);
 
   return (
-    <div className="flex flex-col min-h-full bg-background">
-      {/* Header */}
-      <div className="bg-card px-4 pt-4 pb-3 safe-area-top">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm text-muted-foreground">Cette semaine</span>
-          <motion.button
-            className="p-2 rounded-full touch-target"
-            whileTap={{ scale: 0.9 }}
-          >
-            <Bell className="w-5 h-5 text-primary" />
-          </motion.button>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">Progression</h1>
-      </div>
+    <div className="flex flex-col min-h-full">
+      <MobileHeader 
+        title="Progression"
+        subtitle="Cette semaine"
+        showNotification
+      />
 
       <div className="flex-1 px-4 py-4 space-y-4">
         {loadingSessions ? (
@@ -165,49 +158,51 @@ const Progression = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Heures cette semaine</p>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-baseline gap-1">
-                    <motion.span
-                      className="text-4xl font-bold text-foreground"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      {totalHours.toFixed(1)}
-                    </motion.span>
-                    <span className="text-lg text-muted-foreground">/ {weeklyGoal}h</span>
+              <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Heures cette semaine</p>
+                    <div className="flex items-baseline gap-1">
+                      <motion.span
+                        className="text-4xl font-bold text-foreground"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        {totalHours.toFixed(1)}
+                      </motion.span>
+                      <span className="text-lg text-muted-foreground">/ {weeklyGoal}h</span>
+                    </div>
                   </div>
                   
                   {/* Circular Progress */}
-                  <div className="relative w-20 h-20">
+                  <div className="relative w-24 h-24">
                     <svg className="w-full h-full transform -rotate-90">
                       <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
+                        cx="48"
+                        cy="48"
+                        r="40"
                         stroke="currentColor"
-                        strokeWidth="6"
+                        strokeWidth="8"
                         fill="none"
                         className="text-muted"
                       />
                       <motion.circle
-                        cx="40"
-                        cy="40"
-                        r="34"
+                        cx="48"
+                        cy="48"
+                        r="40"
                         stroke="hsl(var(--primary))"
-                        strokeWidth="6"
+                        strokeWidth="8"
                         fill="none"
                         strokeLinecap="round"
-                        strokeDasharray={213.6}
-                        initial={{ strokeDashoffset: 213.6 }}
-                        animate={{ strokeDashoffset: 213.6 - (213.6 * progressPercent) / 100 }}
+                        strokeDasharray={251.2}
+                        initial={{ strokeDashoffset: 251.2 }}
+                        animate={{ strokeDashoffset: 251.2 - (251.2 * progressPercent) / 100 }}
                         transition={{ duration: 1, ease: "easeOut" }}
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-bold text-foreground">
+                      <span className="text-lg font-bold text-foreground">
                         {Math.round(progressPercent)}%
                       </span>
                     </div>
@@ -246,7 +241,7 @@ const Progression = () => {
                 <Card className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                      <Check className="w-5 h-5 text-green-500" />
+                      <Target className="w-5 h-5 text-green-500" />
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-foreground">{weekSessions.length}</p>

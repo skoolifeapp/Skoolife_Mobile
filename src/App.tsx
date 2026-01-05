@@ -5,10 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
-import SubscriptionGuard from "@/components/SubscriptionGuard";
 import Auth from "./pages/Auth";
-import Pricing from "./pages/Pricing";
-import PostCheckout from "./pages/PostCheckout";
 import Planning from "./pages/Planning";
 import Progression from "./pages/Progression";
 import Matieres from "./pages/Matieres";
@@ -26,15 +23,11 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/post-checkout" element={<PostCheckout />} />
             <Route
               path="/"
               element={
                 <AppLayout>
-                  <SubscriptionGuard>
-                    <Planning />
-                  </SubscriptionGuard>
+                  <Planning />
                 </AppLayout>
               }
             />
@@ -42,9 +35,7 @@ const App = () => (
               path="/progression"
               element={
                 <AppLayout>
-                  <SubscriptionGuard>
-                    <Progression />
-                  </SubscriptionGuard>
+                  <Progression />
                 </AppLayout>
               }
             />
@@ -52,9 +43,7 @@ const App = () => (
               path="/matieres"
               element={
                 <AppLayout>
-                  <SubscriptionGuard>
-                    <Matieres />
-                  </SubscriptionGuard>
+                  <Matieres />
                 </AppLayout>
               }
             />
@@ -62,9 +51,7 @@ const App = () => (
               path="/parametres"
               element={
                 <AppLayout>
-                  <SubscriptionGuard>
-                    <Parametres />
-                  </SubscriptionGuard>
+                  <Parametres />
                 </AppLayout>
               }
             />

@@ -47,7 +47,6 @@ export interface Profile {
   study_domain: string | null;
   weekly_revision_hours: number | null;
   main_exam_period: string | null;
-  lifetime_tier: string | null;
   created_at: string;
 }
 

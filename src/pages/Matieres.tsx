@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Plus, Clock, Calendar, Star, Edit2, Trash2, Archive, Loader2 } from 'lucide-react';
+import { Plus, Clock, Calendar, Award, Edit2, Trash2, Archive, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Subject } from '@/types/database';
+import MobileHeader from '@/components/MobileHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +16,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useToast } from '@/hooks/use-toast';
 
 const COLORS = [
-  '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16',
-  '#22C55E', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6',
-  '#6366F1', '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+  '#FFC107', '#FF5722', '#E91E63', '#9C27B0', '#673AB7',
+  '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50',
+  '#8BC34A', '#CDDC39', '#FF9800', '#795548', '#607D8B',
 ];
 
 const Matieres = () => {
@@ -49,33 +50,26 @@ const Matieres = () => {
     enabled: !!user?.id,
   });
 
-  const { data: hoursMap = { done: {}, planned: {} } } = useQuery({
+  const { data: hoursMap = {} } = useQuery({
     queryKey: ['subject-hours', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('revision_sessions')
-        .select('subject_id, start_time, end_time, status')
-        .eq('user_id', user?.id);
+        .select('subject_id, start_time, end_time')
+        .eq('user_id', user?.id)
+        .eq('status', 'done');
       
       if (error) throw error;
       
-      const done: Record<string, number> = {};
-      const planned: Record<string, number> = {};
-      
+      const map: Record<string, number> = {};
       data?.forEach(session => {
         if (!session.subject_id) return;
         const [startH, startM] = session.start_time.split(':').map(Number);
         const [endH, endM] = session.end_time.split(':').map(Number);
         const mins = (endH * 60 + endM) - (startH * 60 + startM);
-        const hours = mins / 60;
-        
-        if (session.status === 'done') {
-          done[session.subject_id] = (done[session.subject_id] || 0) + hours;
-        }
-        planned[session.subject_id] = (planned[session.subject_id] || 0) + hours;
+        map[session.subject_id] = (map[session.subject_id] || 0) + mins / 60;
       });
-      
-      return { done, planned };
+      return map;
     },
     enabled: !!user?.id,
   });
@@ -171,20 +165,18 @@ const Matieres = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-background">
-      {/* Header */}
-      <div className="bg-card px-4 pt-4 pb-3 safe-area-top">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm text-muted-foreground">
-            {subjects.length} matière{subjects.length > 1 ? 's' : ''}
-          </span>
+    <div className="flex flex-col min-h-full">
+      <MobileHeader 
+        title="Matières"
+        subtitle={`${subjects.length} matière${subjects.length > 1 ? 's' : ''}`}
+        rightAction={
           <Sheet open={isSheetOpen} onOpenChange={(open) => {
             setIsSheetOpen(open);
             if (!open) resetForm();
           }}>
             <SheetTrigger asChild>
               <motion.button
-                className="w-10 h-10 bg-primary rounded-full flex items-center justify-center touch-target shadow-lg"
+                className="p-3 bg-primary rounded-full touch-target"
                 whileTap={{ scale: 0.9 }}
               >
                 <Plus className="w-5 h-5 text-primary-foreground" />
@@ -205,7 +197,7 @@ const Matieres = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ex: Mathématiques"
-                    className="mt-1.5 h-12"
+                    className="mt-1.5"
                   />
                 </div>
 
@@ -216,7 +208,7 @@ const Matieres = () => {
                       <motion.button
                         key={c}
                         onClick={() => setColor(c)}
-                        className={`w-9 h-9 rounded-full touch-target ${
+                        className={`w-8 h-8 rounded-full touch-target ${
                           color === c ? 'ring-2 ring-offset-2 ring-foreground' : ''
                         }`}
                         style={{ backgroundColor: c }}
@@ -233,7 +225,7 @@ const Matieres = () => {
                     type="date"
                     value={examDate}
                     onChange={(e) => setExamDate(e.target.value)}
-                    className="mt-1.5 h-12"
+                    className="mt-1.5"
                   />
                 </div>
 
@@ -246,7 +238,7 @@ const Matieres = () => {
                       value={examWeight}
                       onChange={(e) => setExamWeight(e.target.value)}
                       placeholder="Ex: 3"
-                      className="mt-1.5 h-12"
+                      className="mt-1.5"
                     />
                   </div>
                   <div>
@@ -257,34 +249,24 @@ const Matieres = () => {
                       value={targetHours}
                       onChange={(e) => setTargetHours(e.target.value)}
                       placeholder="Ex: 20"
-                      className="mt-1.5 h-12"
+                      className="mt-1.5"
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setIsSheetOpen(false)} 
-                    className="flex-1 h-12 rounded-xl"
-                  >
-                    Annuler
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit} 
-                    className="flex-1 h-12 rounded-xl"
-                    disabled={!name.trim() || saveMutation.isPending}
-                  >
-                    {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Enregistrer
-                  </Button>
-                </div>
+                <Button 
+                  onClick={handleSubmit} 
+                  className="w-full mt-4"
+                  disabled={!name.trim() || saveMutation.isPending}
+                >
+                  {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  {editingSubject ? 'Enregistrer' : 'Ajouter'}
+                </Button>
               </div>
             </SheetContent>
           </Sheet>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">Matières</h1>
-      </div>
+        }
+      />
 
       <div className="flex-1 px-4 py-4">
         {isLoading ? (
@@ -294,26 +276,24 @@ const Matieres = () => {
         ) : subjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-4">
             <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
-              <Star className="w-10 h-10 text-muted-foreground" />
+              <Award className="w-10 h-10 text-muted-foreground" />
             </div>
             <p className="text-muted-foreground text-center">
               Aucune matière pour l'instant
             </p>
-            <Button onClick={() => setIsSheetOpen(true)} className="gap-2 rounded-xl">
+            <Button onClick={() => setIsSheetOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" />
               Ajouter une matière
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <AnimatePresence>
               {subjects.map((subject, index) => {
                 const daysUntil = getDaysUntilExam(subject.exam_date);
-                const doneHours = hoursMap.done?.[subject.id] || 0;
-                const plannedHours = hoursMap.planned?.[subject.id] || 0;
+                const hours = hoursMap[subject.id] || 0;
                 const target = subject.target_hours || 0;
-                const doneProgress = target > 0 ? Math.min((doneHours / target) * 100, 100) : 0;
-                const plannedProgress = target > 0 ? Math.min((plannedHours / target) * 100, 100) : 0;
+                const progress = target > 0 ? Math.min((hours / target) * 100, 100) : 0;
 
                 return (
                   <motion.div
@@ -324,71 +304,65 @@ const Matieres = () => {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card className="overflow-hidden">
-                      {/* Color Banner */}
                       <div 
-                        className="h-3" 
+                        className="h-2" 
                         style={{ backgroundColor: subject.color }}
                       />
-                      
                       <div className="p-4">
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <h3 className="font-bold text-foreground uppercase text-lg">
-                            {subject.name}
-                          </h3>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-foreground truncate">
+                              {subject.name}
+                            </h3>
+                            
+                            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                              {subject.exam_date && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  <span>
+                                    {format(parseISO(subject.exam_date), 'd MMM', { locale: fr })}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {subject.exam_weight && (
+                                <div className="flex items-center gap-1">
+                                  <Award className="w-4 h-4" />
+                                  <span>Coef {subject.exam_weight}</span>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                <span>{hours.toFixed(1)}h{target > 0 ? ` / ${target}h` : ''}</span>
+                              </div>
+                            </div>
+
+                            {target > 0 && (
+                              <div className="mt-3">
+                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <motion.div
+                                    className="h-full rounded-full"
+                                    style={{ backgroundColor: subject.color }}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${progress}%` }}
+                                    transition={{ duration: 0.5 }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
                           {daysUntil !== null && (
-                            <div className="px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded-full">
-                              <span className="text-sm font-bold text-red-600">
+                            <div className="px-3 py-1.5 bg-primary/10 rounded-full">
+                              <span className="text-sm font-semibold text-primary">
                                 J-{daysUntil}
                               </span>
                             </div>
                           )}
                         </div>
-                        
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-                          {subject.exam_date && (
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                {format(parseISO(subject.exam_date), 'd MMM', { locale: fr })}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {subject.exam_weight && (
-                            <div className="flex items-center gap-1.5">
-                              <Star className="w-4 h-4" />
-                              <span>Coef {subject.exam_weight}</span>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-4 h-4" />
-                            <span>{doneHours.toFixed(1)}h{target > 0 ? ` / ${target}h` : ''}</span>
-                          </div>
-                        </div>
 
-                        {target > 0 && (
-                          <div className="space-y-1 mb-4">
-                            <div className="h-2 bg-muted rounded-full overflow-hidden relative">
-                              {/* Planned progress (background) */}
-                              <motion.div
-                                className="absolute h-full rounded-full bg-red-300 dark:bg-red-800"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${plannedProgress}%` }}
-                                transition={{ duration: 0.5 }}
-                              />
-                              {/* Done progress (foreground) */}
-                              <motion.div
-                                className="absolute h-full rounded-full bg-green-500"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${doneProgress}%` }}
-                                transition={{ duration: 0.5, delay: 0.1 }}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex gap-2 pt-2 border-t border-border">
+                        <div className="flex gap-2 mt-4 pt-3 border-t border-border">
                           <Button 
                             variant="ghost" 
                             size="sm" 

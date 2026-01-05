@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, subDays, parseISO } from 'date-fns';
+import { format, addDays, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Check, X, Clock, Plus, Loader2, Bell } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Clock, Plus, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RevisionSession, CalendarEvent } from '@/types/database';
-import { Card } from '@/components/ui/card';
+import MobileHeader from '@/components/MobileHeader';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,8 +22,10 @@ const Planning = () => {
   const [dragDirection, setDragDirection] = useState(0);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
+  const dayStart = startOfDay(selectedDate).toISOString();
+  const dayEnd = endOfDay(selectedDate).toISOString();
 
-  // Fetch sessions with subject data
+  // Fetch sessions
   const { data: sessions = [], isLoading: loadingSessions } = useQuery({
     queryKey: ['sessions', user?.id, dateStr],
     queryFn: async () => {
@@ -35,6 +38,23 @@ const Planning = () => {
       
       if (error) throw error;
       return (data || []) as RevisionSession[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch calendar events
+  const { data: events = [], isLoading: loadingEvents } = useQuery({
+    queryKey: ['events', user?.id, dateStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('user_id', user?.id)
+        .gte('start_datetime', dayStart)
+        .lte('end_datetime', dayEnd);
+      
+      if (error) throw error;
+      return (data || []) as CalendarEvent[];
     },
     enabled: !!user?.id,
   });
@@ -82,6 +102,63 @@ const Planning = () => {
     }
   };
 
+  const isLoading = loadingSessions || loadingEvents;
+  const hasNoSessions = !isLoading && sessions.length === 0 && events.length === 0;
+
+  // Combine sessions and events for timeline
+  const timelineItems = useMemo(() => {
+    const items: Array<{
+      id: string;
+      type: 'session' | 'event';
+      start: string;
+      end: string;
+      title: string;
+      color: string;
+      status?: string;
+      data: RevisionSession | CalendarEvent;
+    }> = [];
+
+    sessions.forEach(session => {
+      items.push({
+        id: session.id,
+        type: 'session',
+        start: session.start_time,
+        end: session.end_time,
+        title: session.subject?.name || 'Session',
+        color: session.subject?.color || '#FFC107',
+        status: session.status,
+        data: session,
+      });
+    });
+
+    events.forEach(event => {
+      const startTime = format(parseISO(event.start_datetime), 'HH:mm');
+      const endTime = format(parseISO(event.end_datetime), 'HH:mm');
+      items.push({
+        id: event.id,
+        type: 'event',
+        start: startTime,
+        end: endTime,
+        title: event.title,
+        color: event.is_blocking ? '#94a3b8' : '#64748b',
+        data: event,
+      });
+    });
+
+    return items.sort((a, b) => a.start.localeCompare(b.start));
+  }, [sessions, events]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'done':
+        return <Check className="w-4 h-4 text-green-500" />;
+      case 'skipped':
+        return <X className="w-4 h-4 text-red-500" />;
+      default:
+        return <Clock className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
   const getDuration = (start: string, end: string) => {
     const [startH, startM] = start.split(':').map(Number);
     const [endH, endM] = end.split(':').map(Number);
@@ -91,34 +168,18 @@ const Planning = () => {
     return hours > 0 ? `${hours}h${minutes > 0 ? minutes : ''}` : `${minutes}min`;
   };
 
-  const isLoading = loadingSessions;
-  const hasNoSessions = !isLoading && sessions.length === 0;
-
   return (
-    <div className="flex flex-col min-h-full bg-background">
-      {/* Header */}
-      <div className="bg-card px-4 pt-4 pb-3 safe-area-top">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm text-muted-foreground">Planning</span>
-          <motion.button
-            className="p-2 rounded-full touch-target"
-            whileTap={{ scale: 0.9 }}
-          >
-            <Bell className="w-5 h-5 text-primary" />
-          </motion.button>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground">
-          {format(selectedDate, 'EEEE d MMMM', { locale: fr })}
-        </h1>
-      </div>
+    <div className="flex flex-col min-h-full">
+      <MobileHeader 
+        title={format(selectedDate, 'EEEE d MMMM', { locale: fr })}
+        subtitle="Planning"
+        showNotification
+      />
 
       {/* Date Navigation */}
       <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border">
         <motion.button
-          onClick={() => {
-            setDragDirection(-1);
-            setSelectedDate(prev => subDays(prev, 1));
-          }}
+          onClick={() => setSelectedDate(prev => subDays(prev, 1))}
           className="p-2 rounded-full touch-target"
           whileTap={{ scale: 0.9 }}
         >
@@ -127,17 +188,14 @@ const Planning = () => {
 
         <motion.button
           onClick={() => setSelectedDate(new Date())}
-          className="px-5 py-2.5 bg-primary text-primary-foreground rounded-full text-sm font-semibold"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium"
           whileTap={{ scale: 0.95 }}
         >
           Aujourd'hui
         </motion.button>
 
         <motion.button
-          onClick={() => {
-            setDragDirection(1);
-            setSelectedDate(prev => addDays(prev, 1));
-          }}
+          onClick={() => setSelectedDate(prev => addDays(prev, 1))}
           className="p-2 rounded-full touch-target"
           whileTap={{ scale: 0.9 }}
         >
@@ -176,82 +234,79 @@ const Planning = () => {
                 <p className="text-muted-foreground text-center">
                   Aucune session prévue pour ce jour
                 </p>
-                <Button className="gap-2 rounded-xl">
+                <Button className="gap-2">
                   <Plus className="w-4 h-4" />
                   Générer un planning
                 </Button>
               </div>
             )}
 
-            {sessions.map((session, index) => {
-              const isDone = session.status === 'done';
-              const isSkipped = session.status === 'skipped';
-              
-              return (
-                <motion.div
-                  key={session.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+            {timelineItems.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card
+                  className="overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                  onClick={() => item.type === 'session' && setSelectedSession(item.data as RevisionSession)}
                 >
-                  <Card
-                    className={`overflow-hidden cursor-pointer active:scale-[0.98] transition-all ${
-                      isDone ? 'bg-green-50 dark:bg-green-900/10' : ''
-                    } ${isSkipped ? 'opacity-50' : ''}`}
-                    onClick={() => setSelectedSession(session)}
-                  >
-                    <div className="flex">
-                      <div 
-                        className="w-1.5 shrink-0" 
-                        style={{ backgroundColor: session.subject?.color || '#FFC107' }}
-                      />
-                      <div className="flex-1 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              {isDone && <Check className="w-4 h-4 text-green-500" />}
-                              {isSkipped && <X className="w-4 h-4 text-red-500" />}
-                              <Clock className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-semibold text-foreground uppercase text-sm">
-                                {session.subject?.name || 'Session'}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {session.start_time} - {session.end_time} · {getDuration(session.start_time, session.end_time)}
-                            </p>
+                  <div className="flex">
+                    <div 
+                      className="w-1.5 shrink-0" 
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <div className="flex-1 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            {item.type === 'session' && getStatusIcon(item.status!)}
+                            <span className="font-semibold text-foreground truncate">
+                              {item.title}
+                            </span>
                           </div>
-
-                          {session.status === 'planned' && (
-                            <div className="flex gap-2">
-                              <motion.button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  updateStatus.mutate({ id: session.id, status: 'done' });
-                                }}
-                                className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center touch-target"
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <Check className="w-5 h-5 text-green-600" />
-                              </motion.button>
-                              <motion.button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  updateStatus.mutate({ id: session.id, status: 'skipped' });
-                                }}
-                                className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center touch-target"
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <X className="w-5 h-5 text-red-600" />
-                              </motion.button>
-                            </div>
-                          )}
+                          <p className="text-sm text-muted-foreground">
+                            {item.start} - {item.end} · {getDuration(item.start, item.end)}
+                          </p>
                         </div>
+
+                        {item.type === 'session' && item.status === 'planned' && (
+                          <div className="flex gap-2">
+                            <motion.button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateStatus.mutate({ id: item.id, status: 'done' });
+                              }}
+                              className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full touch-target"
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <Check className="w-5 h-5 text-green-600" />
+                            </motion.button>
+                            <motion.button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateStatus.mutate({ id: item.id, status: 'skipped' });
+                              }}
+                              className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full touch-target"
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <X className="w-5 h-5 text-red-600" />
+                            </motion.button>
+                          </div>
+                        )}
+
+                        {item.type === 'event' && (
+                          <span className="text-xs px-2 py-1 bg-muted rounded-full text-muted-foreground">
+                            Événement
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
           </motion.div>
         </AnimatePresence>
       </motion.div>
@@ -286,14 +341,14 @@ const Planning = () => {
             <div className="flex gap-2 pt-2">
               <Button 
                 variant="outline" 
-                className="flex-1 rounded-xl"
+                className="flex-1"
                 onClick={() => setSelectedSession(null)}
               >
                 Fermer
               </Button>
               <Button 
                 variant="destructive" 
-                className="flex-1 rounded-xl"
+                className="flex-1"
                 onClick={() => selectedSession && deleteSession.mutate(selectedSession.id)}
               >
                 Supprimer
