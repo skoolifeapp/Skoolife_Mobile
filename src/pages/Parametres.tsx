@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { User, Clock, Calendar, Bell, LogOut, ChevronRight, Loader2, Save } from 'lucide-react';
+import { Calendar, Bell, LogOut, ChevronRight, Loader2, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Profile, UserPreferences } from '@/types/database';
-import MobileHeader from '@/components/MobileHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -174,11 +173,12 @@ const Parametres = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-full">
-      <MobileHeader 
-        title="Paramètres"
-        subtitle="Gérez votre compte"
-      />
+    <div className="flex flex-col min-h-full bg-background">
+      {/* Header */}
+      <div className="bg-card px-4 pt-4 pb-3 safe-area-top">
+        <span className="text-sm text-muted-foreground">Gérez votre compte</span>
+        <h1 className="text-2xl font-bold text-foreground">Paramètres</h1>
+      </div>
 
       <div className="flex-1 px-4 py-4 space-y-4">
         {loadingProfile ? (
@@ -229,7 +229,7 @@ const Parametres = () => {
                           id="firstName"
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          className="mt-1.5"
+                          className="mt-1.5 h-12"
                         />
                       </div>
                       <div>
@@ -238,7 +238,7 @@ const Parametres = () => {
                           id="lastName"
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
-                          className="mt-1.5"
+                          className="mt-1.5 h-12"
                         />
                       </div>
                     </div>
@@ -250,7 +250,7 @@ const Parametres = () => {
                         value={school}
                         onChange={(e) => setSchool(e.target.value)}
                         placeholder="Ex: Université de Paris"
-                        className="mt-1.5"
+                        className="mt-1.5 h-12"
                       />
                     </div>
 
@@ -262,7 +262,7 @@ const Parametres = () => {
                           value={level}
                           onChange={(e) => setLevel(e.target.value)}
                           placeholder="Ex: L3"
-                          className="mt-1.5"
+                          className="mt-1.5 h-12"
                         />
                       </div>
                       <div>
@@ -272,7 +272,7 @@ const Parametres = () => {
                           value={studyDomain}
                           onChange={(e) => setStudyDomain(e.target.value)}
                           placeholder="Ex: Informatique"
-                          className="mt-1.5"
+                          className="mt-1.5 h-12"
                         />
                       </div>
                     </div>
@@ -291,7 +291,7 @@ const Parametres = () => {
 
                     <Button 
                       onClick={() => saveProfileMutation.mutate()} 
-                      className="w-full mt-4 gap-2"
+                      className="w-full h-12 rounded-xl gap-2"
                       disabled={saveProfileMutation.isPending}
                     >
                       {saveProfileMutation.isPending ? (
@@ -319,7 +319,7 @@ const Parametres = () => {
                   <Card className="p-4 cursor-pointer active:scale-[0.98] transition-transform">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-foreground" />
+                        <Calendar className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-foreground">Préférences planning</h3>
@@ -342,7 +342,7 @@ const Parametres = () => {
                           <motion.button
                             key={day.value}
                             onClick={() => toggleDay(day.value)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                               preferredDays.includes(day.value)
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-secondary text-muted-foreground'
@@ -363,7 +363,7 @@ const Parametres = () => {
                           type="time"
                           value={dailyStart}
                           onChange={(e) => setDailyStart(e.target.value)}
-                          className="mt-1.5"
+                          className="mt-1.5 h-12"
                         />
                       </div>
                       <div>
@@ -373,7 +373,7 @@ const Parametres = () => {
                           type="time"
                           value={dailyEnd}
                           onChange={(e) => setDailyEnd(e.target.value)}
-                          className="mt-1.5"
+                          className="mt-1.5 h-12"
                         />
                       </div>
                     </div>
@@ -423,7 +423,7 @@ const Parametres = () => {
 
                     <Button 
                       onClick={() => savePrefsMutation.mutate()} 
-                      className="w-full gap-2"
+                      className="w-full h-12 rounded-xl gap-2"
                       disabled={savePrefsMutation.isPending}
                     >
                       {savePrefsMutation.isPending ? (
@@ -441,7 +441,7 @@ const Parametres = () => {
               <Card className="p-4">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
-                    <Bell className="w-5 h-5 text-foreground" />
+                    <Bell className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium text-foreground">Notifications</h3>
@@ -452,23 +452,24 @@ const Parametres = () => {
               </Card>
             </motion.div>
 
-            {/* Logout */}
+            {/* Sign Out Button */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
+              className="pt-4"
             >
               <Button
-                onClick={handleSignOut}
                 variant="destructive"
-                className="w-full gap-2"
+                onClick={handleSignOut}
+                className="w-full h-12 rounded-xl gap-2"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4" />
                 Se déconnecter
               </Button>
             </motion.div>
 
-            {/* Version */}
+            {/* Footer */}
             <p className="text-center text-xs text-muted-foreground pt-4">
               Skoolife Mobile v1.0.0
             </p>
